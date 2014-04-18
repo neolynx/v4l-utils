@@ -182,7 +182,6 @@ void dvb_table_sdt_print(struct dvb_v5_fe_parms *parms, struct dvb_table_sdt *ta
 
 struct dvb_table_sdt *dvb_table_sdt_create();
 struct dvb_table_sdt_service *dvb_table_sdt_service_create(struct dvb_table_sdt *sdt, uint16_t service_id);
-ssize_t dvb_table_sdt_calcsize(struct dvb_v5_fe_parms *parms, struct dvb_table_sdt *sdt);
 ssize_t dvb_table_sdt_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_sdt *sdt, uint8_t **data);
 
 #ifdef __cplusplus

@@ -71,6 +71,7 @@ void dvb_mpeg_ts_print(struct dvb_v5_fe_parms *parms, struct dvb_mpeg_ts *ts)
 	dvb_loginfo("| pid           0x%04x", ts->pid);
 	dvb_loginfo("| scrambling         %d", ts->scrambling);
 	dvb_loginfo("| adaptation_field   %d", ts->adaptation_field);
+	dvb_loginfo("| payload            %d", ts->payload);
 	dvb_loginfo("| continuity_counter %d", ts->continuity_counter);
 	if (ts->adaptation_field) {
 		dvb_loginfo("|- Adaptation Field");
