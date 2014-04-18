@@ -165,6 +165,10 @@ void dvb_table_pat_free(struct dvb_table_pat *table);
 void dvb_table_pat_print(struct dvb_v5_fe_parms *parms,
 			 struct dvb_table_pat *table);
 
+struct dvb_table_pat *dvb_table_pat_create();
+struct dvb_table_pat_program *dvb_table_pat_program_create(struct dvb_table_pat *pat, uint16_t pid, uint16_t service_id);
+ssize_t dvb_table_pat_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_pat *pat, uint8_t **data);
+
 #ifdef __cplusplus
 }
 #endif

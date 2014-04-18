@@ -150,26 +150,23 @@ void dvb_table_sdt_print(struct dvb_v5_fe_parms *parms, struct dvb_table_sdt *sd
 		service = service->next;
 		services++;
 	}
-	dvb_loginfo("|_  %d services", services);
+	dvb_loginfo("|_ %d service%s", services, services != 1 ? "s" : "");
 }
 
 struct dvb_table_sdt *dvb_table_sdt_create()
 {
-	struct dvb_table_sdt *sdt = calloc( sizeof( struct dvb_table_sdt ), 1 );
+	struct dvb_table_sdt *sdt;
+
+	sdt = calloc(sizeof(struct dvb_table_sdt), 1);
 	sdt->header.table_id = DVB_TABLE_SDT;
 	sdt->header.one = 3;
-	sdt->header.zero = 1;
 	sdt->header.syntax = 1;
 	sdt->header.current_next = 1;
 	sdt->header.id = 1;
-	sdt->header.current_next = 1;
-	sdt->header.version = 0;
 	sdt->header.one2 = 3;
-	sdt->header.section_id = 0;
-	sdt->header.last_section = 0;
-
 	sdt->network_id = 1;
 	sdt->reserved = 255;
+
 	return sdt;
 }
 
@@ -180,7 +177,7 @@ struct dvb_table_sdt_service *dvb_table_sdt_service_create(struct dvb_table_sdt 
 	/* append to the list */
 	while (*head != NULL)
 		head = &(*head)->next;
-	*head = calloc( sizeof( struct dvb_table_sdt_service ), 1 );
+	*head = calloc(sizeof(struct dvb_table_sdt_service), 1);
 	(*head)->service_id = service_id;
 	(*head)->running_status = 4;
 	(*head)->reserved = 63;
@@ -189,7 +186,7 @@ struct dvb_table_sdt_service *dvb_table_sdt_service_create(struct dvb_table_sdt 
 
 ssize_t dvb_table_sdt_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_sdt *sdt, uint8_t **data)
 {
-	const struct dvb_table_sdt_service *service = sdt->service;
+	const struct dvb_table_sdt_service *service;
 	uint8_t *p;
 	ssize_t size, size_total;
 

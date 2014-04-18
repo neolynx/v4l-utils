@@ -21,6 +21,8 @@
 #include <libdvbv5/pmt.h>
 #include <libdvbv5/descriptors.h>
 #include <libdvbv5/dvb-fe.h>
+#include <libdvbv5/mpeg_ts.h>
+#include <libdvbv5/crc32.h>
 
 #include <string.h> /* memcpy */
 
@@ -151,11 +153,11 @@ void dvb_table_pmt_print(struct dvb_v5_fe_parms *parms, const struct dvb_table_p
 {
 	dvb_loginfo("PMT");
 	dvb_table_header_print(parms, &pmt->header);
-	dvb_loginfo("|- pcr_pid          %04x", pmt->pcr_pid);
-	dvb_loginfo("|  reserved2           %d", pmt->reserved2);
-	dvb_loginfo("|  descriptor length   %d", pmt->desc_length);
-	dvb_loginfo("|  zero3               %d", pmt->zero3);
-	dvb_loginfo("|  reserved3          %d", pmt->reserved3);
+	dvb_loginfo("|- pcr_pid       0x%04x", pmt->pcr_pid);
+	dvb_loginfo("|  reserved           %d", pmt->reserved);
+	dvb_loginfo("|  descriptor length  %d", pmt->desc_length);
+	dvb_loginfo("|  zero               %d", pmt->zero);
+	dvb_loginfo("|  reserved2          %d", pmt->reserved2);
 	dvb_desc_print(parms, pmt->descriptor);
 	dvb_loginfo("|\\");
 	const struct dvb_table_pmt_stream *stream = pmt->stream;
@@ -168,7 +170,7 @@ void dvb_table_pmt_print(struct dvb_v5_fe_parms *parms, const struct dvb_table_p
 		stream = stream->next;
 		streams++;
 	}
-	dvb_loginfo("|_  %d streams", streams);
+	dvb_loginfo("|_ %d stream%s", streams, streams != 1 ? "s" : "");
 }
 
 const char *pmt_stream_name[] = {
@@ -212,3 +214,81 @@ const char *pmt_stream_name[] = {
 	[stream_audio_sdds2]       = "SDDS",
 };
 
+
+struct dvb_table_pmt *dvb_table_pmt_create(uint16_t pcr_pid)
+{
+	struct dvb_table_pmt *pmt;
+
+	pmt = calloc(sizeof(struct dvb_table_pmt), 1);
+	pmt->header.table_id = DVB_TABLE_PMT;
+	pmt->header.one = 3;
+	pmt->header.syntax = 1;
+	pmt->header.current_next = 1;
+	pmt->header.id = 1;
+	pmt->header.one2 = 3;
+	pmt->pcr_pid = pcr_pid;
+	pmt->reserved = 7;
+	pmt->reserved2 = 15;
+
+	return pmt;
+}
+
+struct dvb_table_pmt_stream *dvb_table_pmt_stream_create(struct dvb_table_pmt *pmt, uint16_t elementary_pid, uint8_t type)
+{
+	struct dvb_table_pmt_stream **head = &pmt->stream;
+
+	/* append to the list */
+	while (*head != NULL)
+		head = &(*head)->next;
+	*head = calloc(sizeof(struct dvb_table_pmt_stream), 1);
+	(*head)->elementary_pid = elementary_pid;
+	(*head)->type = type;
+	return *head;
+}
+
+ssize_t dvb_table_pmt_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_pmt *pmt, uint8_t **data)
+{
+	const struct dvb_table_pmt_stream *stream;
+	uint8_t *p;
+	ssize_t size, size_total;
+
+	*data = malloc( DVB_MAX_PAYLOAD_PACKET_SIZE );
+	p = *data;
+
+
+	size = offsetof(struct dvb_table_pmt, descriptor);
+	memcpy(p, pmt, size);
+	struct dvb_table_pmt *pmt_dump = (struct dvb_table_pmt *) p;
+	p += size;
+	bswap16(pmt_dump->bitfield);
+	bswap16(pmt_dump->bitfield2);
+
+	stream = pmt->stream;
+	while (stream) {
+		size = offsetof(struct dvb_table_pmt_stream, descriptor);
+
+		memcpy(p, stream, size);
+		struct dvb_table_pmt_stream *stream_dump = (struct dvb_table_pmt_stream *) p;
+		p += size;
+
+		size = dvb_desc_store(parms, stream->descriptor, p);
+		p += size;
+
+		stream_dump->desc_length = size;
+
+		bswap16(stream_dump->bitfield);
+		bswap16(stream_dump->bitfield2);
+
+		stream = stream->next;
+	}
+
+	size_total = p - *data + DVB_CRC_SIZE;
+	pmt_dump->header.section_length = size_total - offsetof(struct dvb_table_header, id);
+	bswap16(pmt_dump->header.bitfield);
+
+	uint32_t crc = dvb_crc32(*data, size_total - DVB_CRC_SIZE, 0xFFFFFFFF);
+	bswap32(crc);
+	*(uint32_t *) p = crc;
+
+	return size_total;
+}

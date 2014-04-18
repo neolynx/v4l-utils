@@ -217,7 +217,7 @@ struct dvb_table_pmt {
 		uint16_t bitfield;
 		struct {
 			uint16_t pcr_pid:13;
-			uint16_t reserved2:3;
+			uint16_t reserved:3;
 		} __attribute__((packed));
 	} __attribute__((packed));
 
@@ -225,8 +225,8 @@ struct dvb_table_pmt {
 		uint16_t bitfield2;
 		struct {
 			uint16_t desc_length:10;
-			uint16_t zero3:2;
-			uint16_t reserved3:4;
+			uint16_t zero:2;
+			uint16_t reserved2:4;
 		} __attribute__((packed));
 	} __attribute__((packed));
 	struct dvb_desc *descriptor;
@@ -292,6 +292,10 @@ void dvb_table_pmt_free(struct dvb_table_pmt *table);
  */
 void dvb_table_pmt_print(struct dvb_v5_fe_parms *parms,
 			 const struct dvb_table_pmt *table);
+
+struct dvb_table_pmt *dvb_table_pmt_create(uint16_t pcr_pid);
+struct dvb_table_pmt_stream *dvb_table_pmt_stream_create(struct dvb_table_pmt *pmt, uint16_t elementary_pid, uint8_t type);
+ssize_t dvb_table_pmt_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_pmt *pmt, uint8_t **data);
 
 #ifdef __cplusplus
 }

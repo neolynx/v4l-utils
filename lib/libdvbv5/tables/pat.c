@@ -21,6 +21,8 @@
 #include <libdvbv5/pat.h>
 #include <libdvbv5/descriptors.h>
 #include <libdvbv5/dvb-fe.h>
+#include <libdvbv5/mpeg_ts.h>
+#include <libdvbv5/crc32.h>
 
 ssize_t dvb_table_pat_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf,
 			ssize_t buflen, struct dvb_table_pat **table)
@@ -119,11 +121,82 @@ void dvb_table_pat_print(struct dvb_v5_fe_parms *parms, struct dvb_table_pat *pa
 
 	dvb_loginfo("PAT");
 	dvb_table_header_print(parms, &pat->header);
-	dvb_loginfo("|\\ %d program pid%s", pat->programs, pat->programs != 1 ? "s" : "");
+	dvb_loginfo("|\\ program  service");
 
 	while (prog) {
-		dvb_loginfo("|  pid 0x%04x: service 0x%04x", prog->pid, prog->service_id);
+		dvb_loginfo("|-  0x%04x   0x%04x", prog->pid, prog->service_id);
 		prog = prog->next;
 	}
+	dvb_loginfo("|_ %d program%s", pat->programs, pat->programs != 1 ? "s" : "");
+}
+
+struct dvb_table_pat *dvb_table_pat_create()
+{
+	struct dvb_table_pat *pat;
+
+	pat = calloc(sizeof(struct dvb_table_pat), 1);
+	pat->header.table_id = DVB_TABLE_PAT;
+	pat->header.one = 3;
+	pat->header.syntax = 1;
+	pat->header.current_next = 1;
+	pat->header.id = 1;
+	pat->header.one2 = 3;
+	pat->programs = 0;
+
+	return pat;
+}
+
+struct dvb_table_pat_program *dvb_table_pat_program_create(struct dvb_table_pat *pat, uint16_t pid, uint16_t service_id)
+{
+	struct dvb_table_pat_program **head = &pat->program;
+
+	/* append to the list */
+	while (*head != NULL)
+		head = &(*head)->next;
+	*head = calloc(sizeof(struct dvb_table_pat_program), 1);
+	(*head)->service_id = service_id;
+	(*head)->pid = pid;
+	pat->programs++;
+	return *head;
+}
+
+ssize_t dvb_table_pat_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_pat *pat, uint8_t **data)
+{
+	const struct dvb_table_pat_program *program;
+	uint8_t *p;
+	ssize_t size, size_total;
+
+	*data = malloc( DVB_MAX_PAYLOAD_PACKET_SIZE );
+	p = *data;
+
+
+	size = offsetof(struct dvb_table_pat, programs);
+	memcpy(p, pat, size);
+	struct dvb_table_pat *pat_dump = (struct dvb_table_pat *) p;
+	p += size;
+
+	program = pat->program;
+	while (program) {
+		size = offsetof(struct dvb_table_pat_program, next);
+
+		memcpy(p, program, size);
+		struct dvb_table_pat_program *program_dump = (struct dvb_table_pat_program *) p;
+		p += size;
+
+		bswap16(program_dump->service_id);
+		bswap16(program_dump->bitfield);
+
+		program = program->next;
+	}
+
+	size_total = p - *data + DVB_CRC_SIZE;
+	pat_dump->header.section_length = size_total - offsetof(struct dvb_table_header, id);
+	bswap16(pat_dump->header.bitfield);
+
+	uint32_t crc = dvb_crc32(*data, size_total - DVB_CRC_SIZE, 0xFFFFFFFF);
+	bswap32(crc);
+	*(uint32_t *) p = crc;
+
+	return size_total;
 }
 
