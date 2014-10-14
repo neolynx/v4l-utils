@@ -217,7 +217,7 @@ extern "C" {
  * allocated on stack or dynamically.
  */
 ssize_t dvb_mpeg_pes_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssize_t buflen,
-		uint8_t *table);
+		struct dvb_mpeg_pes **table);
 
 /**
  * @brief Deallocate memory associated with a struct dvb_mpeg_pes
