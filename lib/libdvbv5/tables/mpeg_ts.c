@@ -21,34 +21,43 @@
 #include <libdvbv5/descriptors.h>
 #include <libdvbv5/dvb-fe.h>
 
-ssize_t dvb_mpeg_ts_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssize_t buflen, uint8_t *table, ssize_t *table_length)
+ssize_t dvb_mpeg_ts_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssize_t buflen, struct dvb_mpeg_ts **table)
 {
-	struct dvb_mpeg_ts *ts = (struct dvb_mpeg_ts *) table;
 	const uint8_t *p = buf;
 
 	if (buf[0] != DVB_MPEG_TS) {
 		dvb_logerr("mpeg ts invalid marker 0x%02x, sould be 0x%02x", buf[0], DVB_MPEG_TS);
-		*table_length = 0;
 		return -1;
 	}
 
-	memcpy(table, p, sizeof(struct dvb_mpeg_ts));
+	if (!*table) {
+		*table = calloc(sizeof(struct dvb_mpeg_ts), 1);
+		if (!*table) {
+			dvb_logerr("%s: out of memory", __func__);
+			return -2;
+		}
+	}
+
+	memcpy(*table, p, sizeof(struct dvb_mpeg_ts));
 	p += sizeof(struct dvb_mpeg_ts);
 
-	bswap16(ts->bitfield);
+	bswap16((*table)->bitfield);
 
-	if (ts->adaptation_field) {
-		memcpy(ts->adaption, p, sizeof(struct dvb_mpeg_ts_adaption));
-		p += ts->adaption->length + 1;
+	(*table)->adaption = NULL;
+	if ((*table)->adaptation_field) {
+		(*table)->adaption = calloc(sizeof(struct dvb_mpeg_ts_adaption), 1);
+		memcpy((*table)->adaption, p, sizeof(struct dvb_mpeg_ts_adaption));
+		p += (*table)->adaption->length + 1;
 		/* FIXME: copy adaption->lenght bytes */
 	}
 
-	*table_length = p - buf;
 	return p - buf;
 }
 
 void dvb_mpeg_ts_free(struct dvb_mpeg_ts *ts)
 {
+	if (ts->adaption)
+		free(ts->adaption);
 	free(ts);
 }
 
@@ -76,3 +85,4 @@ void dvb_mpeg_ts_print(struct dvb_v5_fe_parms *parms, struct dvb_mpeg_ts *ts)
                 dvb_loginfo("   - extension      %d", ts->adaption->extension);
 	}
 }
+
