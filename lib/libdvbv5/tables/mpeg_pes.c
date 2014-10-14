@@ -22,13 +22,22 @@
 #include <libdvbv5/dvb-fe.h>
 #include <inttypes.h>
 
-ssize_t dvb_mpeg_pes_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssize_t buflen, uint8_t *table)
+ssize_t dvb_mpeg_pes_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssize_t buflen, struct dvb_mpeg_pes **table)
 {
-	struct dvb_mpeg_pes *pes = (struct dvb_mpeg_pes *) table;
 	const uint8_t *p = buf;
+	struct dvb_mpeg_pes *pes;
 	ssize_t bytes_read = 0;
 
-	memcpy(table, p, sizeof(struct dvb_mpeg_pes));
+	if (!*table) {
+		*table = calloc(sizeof(struct dvb_mpeg_pes), 1);
+		if (!*table) {
+			dvb_logerr("%s: out of memory", __func__);
+			return -1;
+		}
+	}
+
+	pes = *table;
+	memcpy(pes, p, sizeof(struct dvb_mpeg_pes));
 	p += sizeof(struct dvb_mpeg_pes);
 	bytes_read += sizeof(struct dvb_mpeg_pes);
 
@@ -37,7 +46,9 @@ ssize_t dvb_mpeg_pes_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssi
 
 	if (pes->sync != 0x000001) {
 		dvb_logerr("mpeg pes invalid, sync 0x%06x should be 0x000001", pes->sync);
-		return -1;
+		free( pes );
+		*table = NULL;
+		return -2;
 	}
 
 	if (pes->stream_id == DVB_MPEG_STREAM_PADDING) {
@@ -50,7 +61,9 @@ ssize_t dvb_mpeg_pes_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssi
 		   pes->stream_id == DVB_MPEG_STREAM_DSMCC ||
 		   pes->stream_id == DVB_MPEG_STREAM_H222E ) {
 		dvb_logerr("mpeg pes: unsupported stream type 0x%04x", pes->stream_id);
-		return -2;
+		free( pes );
+		*table = NULL;
+		return -3;
 	} else {
 		memcpy(pes->optional, p, sizeof(struct dvb_mpeg_pes_optional) -
 					 sizeof(pes->optional->pts) -
