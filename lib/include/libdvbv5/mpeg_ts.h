@@ -115,7 +115,7 @@ struct dvb_mpeg_ts {
 		uint8_t adaptation_field:1;
 		uint8_t scrambling:2;
 	} __attribute__((packed));
-	struct dvb_mpeg_ts_adaption adaption[];
+	struct dvb_mpeg_ts_adaption *adaption;
 } __attribute__((packed));
 
 struct dvb_v5_fe_parms;
@@ -141,7 +141,7 @@ extern "C" {
  * on stack or dynamically.
  */
 ssize_t dvb_mpeg_ts_init (struct dvb_v5_fe_parms *parms, const uint8_t *buf, ssize_t buflen,
-		uint8_t *table, ssize_t *table_length);
+		struct dvb_mpeg_ts **table);
 
 /**
  * @brief Deallocate memory associated with a struct dvb_mpeg_ts
