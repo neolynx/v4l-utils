@@ -209,16 +209,6 @@ void dvb_table_eit_free(struct dvb_table_eit *table);
 void dvb_table_eit_print(struct dvb_v5_fe_parms *parms,
 			 struct dvb_table_eit *table);
 
-/**
- * @brief Converts a DVB EIT formatted timestamp into struct tm
- * @ingroup dvb_table
- *
- * @param data		event on DVB EIT time format
- * @param tm		pointer to struct tm where the converted timestamp will
- *			be stored.
- */
-void dvb_time(const uint8_t data[5], struct tm *tm);
-
 #ifdef __cplusplus
 }
 #endif

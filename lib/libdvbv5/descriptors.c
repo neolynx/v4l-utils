@@ -56,6 +56,14 @@
 #include <libdvbv5/desc_ca_identifier.h>
 #include <libdvbv5/desc_extension.h>
 
+#ifdef ENABLE_NLS
+# include "gettext.h"
+# include <libintl.h>
+# define _(string) dgettext(LIBDVBV5_DOMAIN, string)
+#else
+# define _(string) string
+#endif
+
 static void dvb_desc_init(uint8_t type, uint8_t length, struct dvb_desc *desc)
 {
 	desc->type   = type;
@@ -1391,3 +1399,32 @@ void dvb_hexdump(struct dvb_v5_fe_parms *parms, const char *prefix, const unsign
 		dvb_loginfo("%s%s %s %s", prefix, hex, spaces, ascii);
 	}
 }
+
+void dvb_time(const uint8_t data[5], struct tm *tm)
+{
+  /* ETSI EN 300 468 V1.4.1 */
+  int year, month, day, hour, min, sec;
+  int k = 0;
+  uint16_t mjd;
+
+  mjd   = *(uint16_t *) data;
+  hour  = dvb_bcd(data[2]);
+  min   = dvb_bcd(data[3]);
+  sec   = dvb_bcd(data[4]);
+  year  = ((mjd - 15078.2) / 365.25);
+  month = ((mjd - 14956.1 - (int) (year * 365.25)) / 30.6001);
+  day   = mjd - 14956 - (int) (year * 365.25) - (int) (month * 30.6001);
+  if (month == 14 || month == 15) k = 1;
+  year += k;
+  month = month - 1 - k * 12;
+
+  tm->tm_sec   = sec;
+  tm->tm_min   = min;
+  tm->tm_hour  = hour;
+  tm->tm_mday  = day;
+  tm->tm_mon   = month - 1;
+  tm->tm_year  = year;
+  tm->tm_isdst = -1; /* do not adjust */
+  mktime( tm );
+}
+

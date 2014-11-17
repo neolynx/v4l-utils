@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 /**
  * @brief Maximum size of a table session to be parsed
@@ -158,6 +159,16 @@ uint32_t dvb_bcd(uint32_t bcd);
  */
 void dvb_hexdump(struct dvb_v5_fe_parms *parms, const char *prefix,
 		 const unsigned char *buf, int len);
+
+/**
+ * @brief Converts a DVB formatted timestamp into struct tm
+ * @ingroup dvb_table
+ *
+ * @param data		event on DVB time format
+ * @param tm		pointer to struct tm where the converted timestamp will
+ *			be stored.
+ */
+void dvb_time(const uint8_t data[5], struct tm *tm);
 
 /**
  * @brief parse MPEG-TS descriptors
