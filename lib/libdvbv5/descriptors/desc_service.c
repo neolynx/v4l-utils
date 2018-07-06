@@ -98,3 +98,59 @@ void dvb_desc_service_print(struct dvb_v5_fe_parms *parms, const struct dvb_desc
 	dvb_loginfo("|           name          '%s'", service->name);
 }
 
+struct dvb_desc *dvb_desc_service_create()
+{
+	  struct dvb_desc_service *desc = calloc( sizeof( struct dvb_desc_service ), 1 );
+	  desc->type = service_descriptor;
+	  return (struct dvb_desc *) desc;
+}
+
+ssize_t dvb_desc_service_store(struct dvb_v5_fe_parms *parms, const struct dvb_desc *desc, uint8_t *data)
+{
+	const struct dvb_desc_service *service = (const struct dvb_desc_service *) desc;
+	data[0] = desc->type;
+	uint8_t *p = data + 2;
+
+	*p++ = service->service_type;
+
+	if (service->provider) {
+		int len = strlen(service->provider);
+		int buflen = len * 3;
+		char *buf = malloc(buflen);
+		dvb_iconv_to_charset(parms, buf, buflen,
+				     (const unsigned char *) service->provider,
+				     len, "utf-8", parms->output_charset);
+		int len2 = strlen(buf);
+		if (len2) {
+			*p++ = len2;
+			memcpy(p, buf, len2);
+			p += len2;
+		}
+		free(buf);
+	} else {
+		*p++ = 0;
+	}
+
+	if (service->name) {
+		int len = strlen(service->name);
+		int buflen = len * 3;
+		char *buf = malloc(buflen);
+		dvb_iconv_to_charset(parms, buf, buflen,
+				     (const unsigned char *) service->name,
+				     len, "utf-8", parms->output_charset);
+		int len2 = strlen(buf);
+		if (len2) {
+			*p++ = len2;
+			memcpy(p, buf, len2);
+			p += len2;
+		}
+		free(buf);
+	} else {
+		*p++ = 0;
+	}
+
+	/* set descriptor length */
+	data[1] = p - data - 2;
+	return p - data;
+}
+

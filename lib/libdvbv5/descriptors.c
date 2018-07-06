@@ -56,6 +56,28 @@
 #include <libdvbv5/desc_ca_identifier.h>
 #include <libdvbv5/desc_extension.h>
 
+
+struct dvb_desc *dvb_desc_create(struct dvb_v5_fe_parms *parms, uint8_t type, struct dvb_desc **list)
+{
+	dvb_desc_create_func create = dvb_descriptors[type].create;
+	struct dvb_desc **head = list;
+
+	if (!create) {
+		dvb_logerr("no generator found for %s (0x%02x)",
+				dvb_descriptors[type].name, type);
+		return NULL;
+	}
+
+	/* append to the list */
+	while (*head != NULL)
+		head = &(*head)->next;
+
+	 *head = create();
+	 (*head)->next = NULL;
+	 return *head;
+
+}
+
 static void dvb_desc_init(uint8_t type, uint8_t length, struct dvb_desc *desc)
 {
 	desc->type   = type;
@@ -230,13 +252,29 @@ void dvb_desc_free(struct dvb_desc **list)
 	*list = NULL;
 }
 
+ssize_t dvb_desc_store(struct dvb_v5_fe_parms *parms, const struct dvb_desc *desc, uint8_t *data)
+{
+	ssize_t size = 0;
+	while (desc) {
+		dvb_desc_store_func store = dvb_descriptors[desc->type].store;
+		if (!store) {
+			return -1;
+		}
+		size += store(parms, desc, data);
+		desc = desc->next;
+	}
+	return size;
+}
+
 const struct dvb_descriptor dvb_descriptors[] = {
 	[0 ...255 ] = {
-		.name  = "Unknown descriptor",
-		.init  = NULL,
-		.print = NULL,
-		.free  = NULL,
-		.size  = 0,
+		.name      = "Unknown descriptor",
+		.init      = NULL,
+		.print     = NULL,
+		.free      = NULL,
+		.create    = NULL,
+		.store     = NULL,
+		.size      = 0,
 	},
 	[video_stream_descriptor] = {
 		.name  = "video_stream_descriptor",
@@ -540,11 +578,13 @@ const struct dvb_descriptor dvb_descriptors[] = {
 		.size  = 0,
 	},
 	[service_descriptor] = {
-		.name  = "service_descriptor",
-		.init  = dvb_desc_service_init,
-		.print = dvb_desc_service_print,
-		.free  = dvb_desc_service_free,
-		.size  = sizeof(struct dvb_desc_service),
+		.name     = "service_descriptor",
+		.init     = dvb_desc_service_init,
+		.print    = dvb_desc_service_print,
+		.free     = dvb_desc_service_free,
+		.create   = dvb_desc_service_create,
+		.store    = dvb_desc_service_store,
+		.size     = sizeof(struct dvb_desc_service),
 	},
 	[country_availability_descriptor] = {
 		.name  = "country_availability_descriptor",

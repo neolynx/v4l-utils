@@ -111,6 +111,9 @@ void dvb_desc_service_print(struct dvb_v5_fe_parms *parms,
  */
 void dvb_desc_service_free(struct dvb_desc *desc);
 
+struct dvb_desc *dvb_desc_service_create();
+ssize_t dvb_desc_service_store(struct dvb_v5_fe_parms *parms, const struct dvb_desc *desc, uint8_t *data);
+
 #ifdef __cplusplus
 }
 #endif

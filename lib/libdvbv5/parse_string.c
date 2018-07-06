@@ -299,7 +299,7 @@ static struct charset_conv en300468_latin_00_to_utf8[256] = {
 	[0xff] = { 2, {0xc2, 0xad, } },
 };
 
-void dvb_iconv_to_charset(struct dvb_v5_fe_parms *parms,
+size_t dvb_iconv_to_charset(struct dvb_v5_fe_parms *parms,
 			  char *dest,
 			  size_t destlen,
 			  const unsigned char *src,
@@ -316,6 +316,7 @@ void dvb_iconv_to_charset(struct dvb_v5_fe_parms *parms,
 	if (cd == (iconv_t)(-1)) {
 		memcpy(p, src, len);
 		p[len] = '\0';
+		destlen = len;
 		dvb_logerr("Conversion from %s to %s not supported\n",
 				input_charset, output_charset);
 		if (!strcasecmp(input_charset, "ARIB-STD-B24"))
@@ -325,6 +326,7 @@ void dvb_iconv_to_charset(struct dvb_v5_fe_parms *parms,
 		iconv_close(cd);
 		*p = '\0';
 	}
+	return destlen;
 }
 
 static void charset_conversion(struct dvb_v5_fe_parms *parms, char **dest, const unsigned char *s,
@@ -365,6 +367,7 @@ static void charset_conversion(struct dvb_v5_fe_parms *parms, char **dest, const
 		dvb_iconv_to_charset(parms, *dest, destlen, s, len,
 				     input_charset,
 				     parms->output_charset);
+	/* FIXME: do something with destlen */
 }
 
 void dvb_parse_string(struct dvb_v5_fe_parms *parms, char **dest, char **emph,
