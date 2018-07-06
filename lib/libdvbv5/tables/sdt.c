@@ -21,6 +21,10 @@
 #include <libdvbv5/sdt.h>
 #include <libdvbv5/descriptors.h>
 #include <libdvbv5/dvb-fe.h>
+#include <libdvbv5/mpeg_ts.h>
+#include <libdvbv5/crc32.h>
+
+#include <string.h> /* memcpy */
 
 ssize_t dvb_table_sdt_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf,
 			ssize_t buflen, struct dvb_table_sdt **table)
@@ -116,7 +120,7 @@ ssize_t dvb_table_sdt_init(struct dvb_v5_fe_parms *parms, const uint8_t *buf,
 void dvb_table_sdt_free(struct dvb_table_sdt *sdt)
 {
 	struct dvb_table_sdt_service *service = sdt->service;
-	while(service) {
+	while (service) {
 		dvb_desc_free((struct dvb_desc **) &service->descriptor);
 		struct dvb_table_sdt_service *tmp = service;
 		service = service->next;
@@ -140,6 +144,7 @@ void dvb_table_sdt_print(struct dvb_v5_fe_parms *parms, struct dvb_table_sdt *sd
 		dvb_loginfo("|   EIT present following %d", service->EIT_present_following);
 		dvb_loginfo("|   free CA mode          %d", service->free_CA_mode);
 		dvb_loginfo("|   running status        %d", service->running_status);
+		dvb_loginfo("|   reserved              %d", service->reserved);
 		dvb_loginfo("|   descriptor length     %d", service->desc_length);
 		dvb_desc_print(parms, service->descriptor);
 		service = service->next;
@@ -148,3 +153,83 @@ void dvb_table_sdt_print(struct dvb_v5_fe_parms *parms, struct dvb_table_sdt *sd
 	dvb_loginfo("|_  %d services", services);
 }
 
+struct dvb_table_sdt *dvb_table_sdt_create()
+{
+	struct dvb_table_sdt *sdt = calloc( sizeof( struct dvb_table_sdt ), 1 );
+	sdt->header.table_id = DVB_TABLE_SDT;
+	sdt->header.one = 3;
+	sdt->header.zero = 1;
+	sdt->header.syntax = 1;
+	sdt->header.current_next = 1;
+	sdt->header.id = 1;
+	sdt->header.current_next = 1;
+	sdt->header.version = 0;
+	sdt->header.one2 = 3;
+	sdt->header.section_id = 0;
+	sdt->header.last_section = 0;
+
+	sdt->network_id = 1;
+	sdt->reserved = 255;
+	return sdt;
+}
+
+struct dvb_table_sdt_service *dvb_table_sdt_service_create(struct dvb_table_sdt *sdt, uint16_t service_id)
+{
+	struct dvb_table_sdt_service **head = &sdt->service;
+
+	/* append to the list */
+	while (*head != NULL)
+		head = &(*head)->next;
+	*head = calloc( sizeof( struct dvb_table_sdt_service ), 1 );
+	(*head)->service_id = service_id;
+	(*head)->running_status = 4;
+	(*head)->reserved = 63;
+	return *head;
+}
+
+ssize_t dvb_table_sdt_store(struct dvb_v5_fe_parms *parms, const struct dvb_table_sdt *sdt, uint8_t **data)
+{
+	const struct dvb_table_sdt_service *service = sdt->service;
+	uint8_t *p;
+	ssize_t size, size_total;
+
+	*data = malloc( DVB_MAX_PAYLOAD_PACKET_SIZE );
+	p = *data;
+
+
+	size = offsetof(struct dvb_table_sdt, service);
+	memcpy(p, sdt, size);
+	struct dvb_table_sdt *sdt_dump = (struct dvb_table_sdt *) p;
+	p += size;
+
+	bswap16(sdt_dump->network_id);
+
+	service = sdt->service;
+	while (service) {
+		size = offsetof(struct dvb_table_sdt_service, descriptor);
+
+		memcpy(p, service, size);
+		struct dvb_table_sdt_service *service_dump = (struct dvb_table_sdt_service *) p;
+		p += size;
+
+		size = dvb_desc_store(parms, service->descriptor, p);
+		p += size;
+
+		service_dump->desc_length = size;
+
+		bswap16(service_dump->service_id);
+		bswap16(service_dump->bitfield);
+
+		service = service->next;
+	}
+
+	size_total = p - *data + DVB_CRC_SIZE;
+	sdt_dump->header.section_length = size_total - offsetof(struct dvb_table_header, id);
+	bswap16(sdt_dump->header.bitfield);
+
+	uint32_t crc = dvb_crc32(*data, size_total - DVB_CRC_SIZE, 0xFFFFFFFF);
+	bswap32(crc);
+	*(uint32_t *) p = crc;
+
+	return size_total;
+}

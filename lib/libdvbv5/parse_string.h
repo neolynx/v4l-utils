@@ -22,7 +22,7 @@
 
 struct dvb_v5_fe_parms;
 
-void dvb_iconv_to_charset(struct dvb_v5_fe_parms *parms,
+size_t dvb_iconv_to_charset(struct dvb_v5_fe_parms *parms,
 			  char *dest,
 			  size_t destlen,
 			  const unsigned char *src,

@@ -165,6 +165,9 @@ void dvb_mpeg_ts_free(struct dvb_mpeg_ts *ts);
  */
 void dvb_mpeg_ts_print(struct dvb_v5_fe_parms *parms, struct dvb_mpeg_ts *ts);
 
+ssize_t dvb_mpeg_ts_create(struct dvb_v5_fe_parms *parms, uint8_t *buf, ssize_t buflen,
+		uint8_t **data, uint16_t pid, int padding);
+
 #ifdef __cplusplus
 }
 #endif

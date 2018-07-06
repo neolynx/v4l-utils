@@ -96,6 +96,8 @@ extern const dvb_table_init_func dvb_table_initializers[256];
 	b = ntohl(b); \
 } while (0)
 
+#define DVB_DESC_HEADER_SIZE 2
+
 /* Deprecated */
 #define DVB_DESC_HEADER() \
 	uint8_t type; \
@@ -210,6 +212,8 @@ void dvb_desc_free (struct dvb_desc **list);
  * @param desc		struct dvb_desc pointer.
  */
 void dvb_desc_print(struct dvb_v5_fe_parms *parms, struct dvb_desc *desc);
+struct dvb_desc *dvb_desc_create(struct dvb_v5_fe_parms *parms, uint8_t type, struct dvb_desc **list);
+ssize_t dvb_desc_store(struct dvb_v5_fe_parms *parms, const struct dvb_desc *desc, uint8_t *data);
 
 #ifdef __cplusplus
 }
@@ -243,6 +247,8 @@ typedef void (*dvb_desc_print_func)(struct dvb_v5_fe_parms *parms,
  * @param desc		pointer to struct dvb_desc pointer to be freed
  */
 typedef void (*dvb_desc_free_func) (struct dvb_desc *desc);
+typedef ssize_t (*dvb_desc_store_func) (struct dvb_v5_fe_parms *parms, const struct dvb_desc *desc, uint8_t *data);
+typedef struct dvb_desc *(*dvb_desc_create_func) ();
 
 /**
  * @struct dvb_descriptor
@@ -262,6 +268,8 @@ struct dvb_descriptor {
 	dvb_desc_init_func init;
 	dvb_desc_print_func print;
 	dvb_desc_free_func free;
+	dvb_desc_create_func create;
+	dvb_desc_store_func store;
 	ssize_t size;
 };
 
