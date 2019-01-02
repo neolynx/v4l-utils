@@ -471,8 +471,24 @@ void dvb_parse_string(struct dvb_v5_fe_parms *parms, char **dest, char **emph,
 			}
 			else if (*s == 0x8a)
 				*p++ = '\n';
+			else if (*s >= 0x80 && *s <= 0x9f) {
+				dvb_log("char 0x%02x", *s);
+				*p++ = '%';
+				char a;
+				a = (*s) >> 4;
+				a += '0';
+				dvb_log("a 0x%02x", a);
+				if (a > '9') a += 7;
+				*p++ = a;
+				a = (*s) & 0x0f;
+				a += '0';
+				if (a > '9') a += 7;
+				dvb_log("b 0x%02x", a);
+				*p++ = a;
+			}
 		}
 		*p = '\0';
+		dvb_log("string: '%s'", tmp1);
 		*p2 = '\0';
 		len = p - (char *)tmp1;
 		len2 = p2 - (char *)tmp2;
@@ -503,6 +519,7 @@ void dvb_parse_string(struct dvb_v5_fe_parms *parms, char **dest, char **emph,
 			else if (code == 0xe08a)
 				/* newline, append code blow */ ;
 			else if (code >= 0xe080 && code <= 0xe09f)
+				dvb_logwarn("%s: ignoring character: 0x%04x", __func__, code);
 				continue;
 
 			*out_code++ = code;
